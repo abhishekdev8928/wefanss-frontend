@@ -37,26 +37,28 @@ const Updateprofessionalmaster = () => {
     { title: "Dashboard", link: "#" },
     { title: "Update Profession Master", link: "#" },
   ];
+
   const fetchSectionTemplateOptions = async () => {
     try {
       const data = await getSectionTemplateOptions();
-      const options = (data.msg || []).map((item) => ({
+      const options = (data.data || []).map((item) => ({
         value: item._id,
         label: item.title?.trim() || item.title,
       }));
       setSectionTemplateOptions(options);
     } catch (err) {
-      console.error("Error fetching language options:", err);
+      console.error("Error fetching section template options:", err);
     }
   };
+
   // Fetch professionalmaster data
   useEffect(() => {
     const fetchprofessionalmaster = async () => {
       try {
         const res_data = await getprofessionalmasterById(id);
 
-        if (res_data.msg) {
-          const data = res_data.msg;
+        if (res_data.data) {
+          const data = res_data.data;
           setprofessionalmaster({
             name: data.name || "",
             slug: data.slug || "",
@@ -79,29 +81,29 @@ const Updateprofessionalmaster = () => {
   }, [id]);
 
   // Input handler
-const handleInput = (e) => {
-  const { name, value } = e.target;
+  const handleInput = (e) => {
+    const { name, value } = e.target;
 
-  // Auto-generate slug when name changes
-  if (name === "name") {
-    const generatedSlug = value
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-") // replace non-alphanumeric with hyphen
-      .replace(/^-+|-+$/g, ""); // remove leading/trailing hyphens
+    // Auto-generate slug when name changes
+    if (name === "name") {
+      const generatedSlug = value
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-") // replace non-alphanumeric with hyphen
+        .replace(/^-+|-+$/g, ""); // remove leading/trailing hyphens
 
-    setprofessionalmaster({
-      ...professionalmaster,
-      name: value,
-      slug: generatedSlug,
-    });
-  } else {
-    setprofessionalmaster({
-      ...professionalmaster,
-      [name]: value,
-    });
-  }
-};
+      setprofessionalmaster({
+        ...professionalmaster,
+        name: value,
+        slug: generatedSlug,
+      });
+    } else {
+      setprofessionalmaster({
+        ...professionalmaster,
+        [name]: value,
+      });
+    }
+  };
 
   // Handle file change
   const handleFileChange = (e) => {
@@ -138,11 +140,8 @@ const handleInput = (e) => {
 
       const res_data = await updateprofessionalmaster(id, formData);
 
-      if (
-        res_data.success === false ||
-        res_data.msg === "professionalmaster already exist"
-      ) {
-        toast.error(res_data.msg || "Failed to update professionalmaster");
+      if (res_data.success === false) {
+        toast.error(res_data.message || "Failed to update professionalmaster");
         return;
       }
 
@@ -158,8 +157,7 @@ const handleInput = (e) => {
     <div className="page-content">
       <Container fluid>
         <Breadcrumbs
-          title="UPDATE 
-Profession Master"
+          title="UPDATE Profession Master"
           breadcrumbItems={breadcrumbItems}
         />
         <Row>
@@ -177,7 +175,7 @@ Profession Master"
                         name="name"
                         type="text"
                         placeholder="Name"
-                        value={professionalmaster.name} // ✅ correct usage
+                        value={professionalmaster.name}
                         onChange={handleInput}
                       />
                       {errors.name && (
@@ -210,7 +208,7 @@ Profession Master"
                         name="slug"
                         type="text"
                         placeholder="Slug"
-                        value={professionalmaster.slug} // ✅ correct usage
+                        value={professionalmaster.slug}
                         onChange={handleInput}
                       />
                       {errors.slug && (

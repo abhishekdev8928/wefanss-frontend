@@ -88,6 +88,9 @@ import UpdateEmploye from "../pages/Employee/UpdateEmploye";
 import Profile from "../pages/profile/Profile";
 import AuthLayout from "../layout/auth-layout";
 import DashboardLayout from "../layout/dashboard-layout";
+import AddCelebrityForm from "../pages/Celebraty/AddCelebrity";
+import UpdateCelebrityForm from "../pages/Celebraty/UpdateCelebrity";
+import UserManagementList from "../pages/UserManagement/UserManagementList";
 
 /* ================= ROUTER ================= */
 
@@ -121,8 +124,8 @@ const router = createBrowserRouter([
     { path: "triviaTypes-master", element: <TriviaTypesList /> },
 
     { path: "celebrity-list", element: <CelebratyList /> },
-    { path: "add-celebrity", element: <AddCelebraty /> },
-    { path: "update-celebrity/:id", element: <UpdateCelebraty /> },
+    { path: "add-celebrity", element: <AddCelebrityForm /> },
+    { path: "update-celebrity/:id", element: <UpdateCelebrityForm /> },
 
     { path: "sectiontemplate-list", element: <SectionTemplateList /> },
 
@@ -167,7 +170,7 @@ const router = createBrowserRouter([
     { path: "role-master", element: <RoleMasterList /> },
     { path: "privileges/:id", element: <Privileges /> },
 
-    { path: "employee-list", element: <EmployeeList /> },
+    { path: "employee-list", element: <UserManagementList /> },
     { path: "create-employee", element: <CreateEmploye /> },
     { path: "update-employee/:id", element: <UpdateEmploye /> },
 

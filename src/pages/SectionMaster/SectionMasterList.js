@@ -31,6 +31,9 @@ import {
   deletesectionmaster,
   updatesectionmasterStatus,
 } from "../../api/sectionmasterApi";
+import PrivilegeAccess from "../../components/protection/PrivilegeAccess";
+import { RESOURCES, OPERATIONS } from "../../constant/privilegeConstants";
+import { usePrivilegeStore } from "../../config/store/privilegeStore";
 
 // 🔎 Global filter component
 function GlobalFilter({
@@ -133,12 +136,18 @@ const TableContainer = ({
             setGlobalFilter={setGlobalFilter}
           />
         )}
+        {/* ✅ Add Button - wrapped with PrivilegeAccess */}
         <Col md={6}>
-          <div className="d-flex justify-content-end">
-            <Link to="/dashboard/add-sectionmaster" className="btn btn-primary">
-              Add
-            </Link>
-          </div>
+          <PrivilegeAccess
+            resource={RESOURCES.SECTION_TYPE}
+            action={OPERATIONS.ADD}
+          >
+            <div className="d-flex justify-content-end">
+              <Link to="/dashboard/add-sectionmaster" className="btn btn-primary">
+                Add
+              </Link>
+            </div>
+          </PrivilegeAccess>
         </Col>
       </Row>
 
@@ -244,6 +253,9 @@ const SectionMasterList = () => {
   const [modalOpen2, setModalOpen2] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
+  // ✅ Get permission functions from store
+  const { hasPermission } = usePrivilegeStore();
+
   // 👇 Open modal and set ID
   const handleDelete = (id) => {
     setDeleteId(id);
@@ -318,8 +330,13 @@ const SectionMasterList = () => {
     fetchData();
   }, []);
 
-  const columns = useMemo(
-    () => [
+  // ✅ Check permissions
+  const canEdit = hasPermission(RESOURCES.SECTION_TYPE, OPERATIONS.EDIT);
+  const canDelete = hasPermission(RESOURCES.SECTION_TYPE, OPERATIONS.DELETE);
+  const hasAnyAction = canEdit || canDelete;
+
+  const columns = useMemo(() => {
+    const baseColumns = [
       {
         Header: "No.",
         accessor: (_row, i) => i + 1,
@@ -352,29 +369,45 @@ const SectionMasterList = () => {
           );
         },
       },
-      {
+    ];
+
+    // ✅ Add Option column only if user has edit or delete permissions
+    if (hasAnyAction) {
+      baseColumns.push({
         Header: "Option",
         Cell: ({ row }) => (
           <div className="d-flex gap-2">
-            <Link
-              to={`/dashboard/update-sectionmaster/${row.original._id}`}
-              className="btn btn-primary btn-sm"
+            <PrivilegeAccess
+              resource={RESOURCES.SECTION_TYPE}
+              action={OPERATIONS.EDIT}
             >
-              Edit
-            </Link>
-            <Button
-              color="danger"
-              size="sm"
-              onClick={() => handleDelete(row.original._id)}
+              <Link
+                to={`/dashboard/update-sectionmaster/${row.original._id}`}
+                className="btn btn-primary btn-sm"
+              >
+                Edit
+              </Link>
+            </PrivilegeAccess>
+
+            <PrivilegeAccess
+              resource={RESOURCES.SECTION_TYPE}
+              action={OPERATIONS.DELETE}
             >
-              Delete
-            </Button>
+              <Button
+                color="danger"
+                size="sm"
+                onClick={() => handleDelete(row.original._id)}
+              >
+                Delete
+              </Button>
+            </PrivilegeAccess>
           </div>
         ),
-      },
-    ],
-    [sectionmasterList]
-  );
+      });
+    }
+
+    return baseColumns;
+  }, [sectionmasterList, hasAnyAction]);
 
   const breadcrumbItems = [
     { title: "Dashboard", link: "/" },

@@ -1,3 +1,6 @@
+
+import PrivilegeAccess from "../../components/protection/PrivilegeAccess"; // ✅ Import component
+import { RESOURCES, OPERATIONS } from "../../constant/privilegeConstants"; // ✅ Import constants
 import React, { useMemo, Fragment, useState, useEffect } from "react";
 import {
   Card,
@@ -34,6 +37,7 @@ import {
   getLanguageById,
   updateLanguageStatus,
 } from "../../api/LanguageApi";
+import { usePrivilegeStore } from "../../config/store/privilegeStore"; // ✅ Import store
 
 // ================= GLOBAL FILTER ==================
 function GlobalFilter({ preGlobalFilteredRows, globalFilter, setGlobalFilter }) {
@@ -230,12 +234,9 @@ const LanguageMasterList = () => {
   const [deleteId, setDeleteId] = useState(null);
   const [itemIdToEdit, setItemIdToEdit] = useState(null);
   const [errors, setErrors] = useState({});
-  const [privileges, setPrivileges] = useState({});
-  const [roleName, setRoleName] = useState(localStorage.getItem("role_name") || "");
 
-  const isAdmin =  "admin";
-
- 
+  // ✅ Get permission functions from store
+  const { hasPermission } = usePrivilegeStore();
 
   // ================= FETCH DATA =================
   const fetchData = async () => {
@@ -320,8 +321,13 @@ const LanguageMasterList = () => {
   };
 
   // ================= TABLE COLUMNS =================
-  const columns = useMemo(
-    () => [
+  const columns = useMemo(() => {
+    // ✅ Check if user has ANY action permission
+    const canEdit = hasPermission(RESOURCES.LANGUAGE, OPERATIONS.EDIT);
+    const canDelete = hasPermission(RESOURCES.LANGUAGE, OPERATIONS.DELETE);
+    const hasAnyAction = canEdit || canDelete;
+
+    const baseColumns = [
       { Header: "No.", accessor: (_row, i) => i + 1 },
       { Header: "Created Date", accessor: "createdAt" },
       { Header: "Name", accessor: "name" },
@@ -351,11 +357,16 @@ const LanguageMasterList = () => {
           );
         },
       },
-      {
+    ];
+
+    // ✅ Only add "Option" column if user has at least one action permission
+    if (hasAnyAction) {
+      baseColumns.push({
         Header: "Option",
         Cell: ({ row }) => (
           <div className="d-flex gap-2">
-            {(isAdmin || privileges.languagemasterupdate === "1") && (
+            {/* ✅ Wrap Edit Button */}
+            <PrivilegeAccess resource={RESOURCES.LANGUAGE} action={OPERATIONS.EDIT}>
               <Button
                 color="primary"
                 onClick={() => handleEdit(row.original._id)}
@@ -363,8 +374,10 @@ const LanguageMasterList = () => {
               >
                 Edit
               </Button>
-            )}
-            {(isAdmin || privileges.languagemasterdelete === "1") && (
+            </PrivilegeAccess>
+
+            {/* ✅ Wrap Delete Button */}
+            <PrivilegeAccess resource={RESOURCES.LANGUAGE} action={OPERATIONS.DELETE}>
               <Button
                 color="danger"
                 size="sm"
@@ -372,17 +385,17 @@ const LanguageMasterList = () => {
               >
                 Delete
               </Button>
-            )}
+            </PrivilegeAccess>
           </div>
         ),
-      },
-    ],
-    [categorylist, privileges]
-  );
+      });
+    }
+
+    return baseColumns;
+  }, [categorylist]);
 
   useEffect(() => {
     fetchData();
-
   }, []);
 
   const breadcrumbItems = [
@@ -399,31 +412,27 @@ const LanguageMasterList = () => {
             breadcrumbItems={breadcrumbItems}
           />
 
-          {(isAdmin || privileges.languagemasteradd === "1") && (
+          {/* ✅ Wrap Add Button */}
+          <PrivilegeAccess resource={RESOURCES.LANGUAGE} action={OPERATIONS.ADD}>
             <div className="d-flex justify-content-end mb-2">
               <Button color="primary" onClick={() => setModalOpen(true)}>
                 Add
               </Button>
             </div>
-          )}
+          </PrivilegeAccess>
 
-          {isAdmin || privileges.languagemasterlist === "1" ? (
-            <Card>
-              <CardBody>
-                <TableContainer
-                  columns={columns}
-                  data={categorylist} // ✅ FIXED
-                  customPageSize={10}
-                  isGlobalFilter={true}
-                  setModalOpen={setModalOpen}
-                />
-              </CardBody>
-            </Card>
-          ) : (
-            <p className="text-center text-danger mt-4">
-              You do not have permission to view this list.
-            </p>
-          )}
+          {/* ✅ Show table - no privilege check needed for viewing */}
+          <Card>
+            <CardBody>
+              <TableContainer
+                columns={columns}
+                data={categorylist}
+                customPageSize={10}
+                isGlobalFilter={true}
+                setModalOpen={setModalOpen}
+              />
+            </CardBody>
+          </Card>
         </Container>
 
         {/* ADD / EDIT MODAL */}

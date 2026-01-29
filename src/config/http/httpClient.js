@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getAccessToken, getRefreshToken, setAuthCookies, clearAuthCookies } from '../store/authStore';
 
 const httpClient = axios.create({
-  baseURL: "https://wefanss-backend-gavj.onrender.com/api" || "https://digihostinfra.com/api",
+  baseURL:  `${process.env.REACT_APP_API_BASE_URL}/api`,
   timeout: 300000,
   headers: {
     'Content-Type': 'application/json',
@@ -10,6 +10,7 @@ const httpClient = axios.create({
   },
   withCredentials: true,
 });
+
 
 
 httpClient.interceptors.request.use(

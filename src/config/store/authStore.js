@@ -28,9 +28,7 @@ export const clearAuthCookies = () => {
 export const getAccessToken = () => Cookies.get(ACCESS_TOKEN);
 export const getRefreshToken = () => Cookies.get(REFRESH_TOKEN);
 
-/* =========================
-   AUTH STORE
-========================= */
+
 export const useAuthStore = create(
   devtools(
     persist(

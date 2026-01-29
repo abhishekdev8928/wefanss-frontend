@@ -285,15 +285,16 @@ const ProfessionalMasterList = () => {
   };
 
   // Fetch data
-  const fetchData = async () => {
-    try {
-      const result = await getprofessionalmasters();
-      setProfessionalmasterList(result.msg || []);
-    } catch (error) {
-      console.error("Error fetching professional masters:", error);
-      toast.error("Failed to load professional master data.");
-    }
-  };
+  // Fetch data
+const fetchData = async () => {
+  try {
+    const result = await getprofessionalmasters();
+    setProfessionalmasterList(result.data || []); // ✅ Changed from result.msg to result.data
+  } catch (error) {
+    console.error("Error fetching professional masters:", error);
+    toast.error("Failed to load professional master data.");
+  }
+};
 
   // Confirm delete
   const handleYesNo = async () => {

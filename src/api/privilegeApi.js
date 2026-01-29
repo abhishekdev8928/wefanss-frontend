@@ -1,6 +1,6 @@
 import httpClient from "../config/http/httpClient";
 
-export const getAllPrivileges = async () => {
+export const getUserPrivileges = async () => {
   try {
     const response = await httpClient.get("/privileges");
     return response.data;

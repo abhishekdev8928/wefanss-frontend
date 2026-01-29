@@ -11,6 +11,9 @@ import {
   Label,
   Spinner,
 } from "reactstrap";
+
+import { RESOURCES, RESOURCE_MAPPING } from "../../constant/privilegeConstants";
+
 import {
   useTable,
   useGlobalFilter,
@@ -198,30 +201,6 @@ TableContainer.propTypes = {
   isGlobalFilter: PropTypes.bool,
 };
 
-// Resource mapping - backend value to display name
-const RESOURCE_MAPPING = {
-  professionmaster: "Profession Master",
-  languagemaster: "Language Master",
-  triviatypes: "Trivia Types",
-  sociallinks: "Social Links",
-  genremaster: "Genre Master",
-  celebrity: "Celebrity",
-  sectiontypesmaster: "Section Types Master",
-  sectiontemplate: "Section Template",
-};
-
-// All available resources
-const ALL_RESOURCES = [
-  "professionmaster",
-  "languagemaster",
-  "triviatypes",
-  "sociallinks",
-  "genremaster",
-  "celebrity",
-  "sectiontypesmaster",
-  "sectiontemplate",
-];
-
 // Main Privileges Component
 const Privileges = () => {
   const { id } = useParams();
@@ -230,6 +209,7 @@ const Privileges = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [masterChecked, setMasterChecked] = useState(false);
+  const [roleInfo, setRoleInfo] = useState(null);
 
   // Fetch privileges from backend
   const fetchPrivileges = async () => {
@@ -238,41 +218,35 @@ const Privileges = () => {
     setLoading(true);
     try {
       const response = await getPrivilegesByRoleId(id);
-      const permissions = response.data?.permissions || [];
-
-      // Create privilege data structure from backend response
-      const privilegeMap = {};
-      permissions.forEach(perm => {
-        privilegeMap[perm.resource] = perm.operations || [];
-      });
-
-      // Create table data for all resources
-      const tableData = ALL_RESOURCES.map((resource, index) => ({
-        id: index + 1,
-        resource: resource,
-        resourceName: RESOURCE_MAPPING[resource],
-        add: privilegeMap[resource]?.includes("add") || false,
-        edit: privilegeMap[resource]?.includes("edit") || false,
-        delete: privilegeMap[resource]?.includes("delete") || false,
-        publish: resource === "celebrity" && privilegeMap[resource]?.includes("publish") || false,
-      }));
-
-      setPrivilegeData(tableData);
-    } catch (error) {
-      console.error("Error fetching privileges:", error);
-      toast.error(error);
       
-      // Initialize with empty data if no privileges found
-      const tableData = ALL_RESOURCES.map((resource, index) => ({
+      console.log("📥 Backend Response:", response);
+
+      // ✅ Extract data from the standardized response structure
+      const { role, permissions = [], hasPermissions } = response.data || {};
+      
+      // Store role info
+      setRoleInfo(role);
+
+      // ✅ Create table data directly from backend permissions (no ALL_RESOURCES loop)
+      const tableData = permissions.map((perm, index) => ({
         id: index + 1,
-        resource: resource,
-        resourceName: RESOURCE_MAPPING[resource],
-        add: false,
-        edit: false,
-        delete: false,
-        publish: false,
+        resource: perm.resource,
+        resourceName: RESOURCE_MAPPING[perm.resource] || perm.resource, // fallback to resource name if not in mapping
+        add: perm.operations?.add === true,
+        edit: perm.operations?.edit === true,
+        delete: perm.operations?.delete === true,
+        publish: perm.resource === "celebrity" ? (perm.operations?.publish === true) : false,
       }));
+
       setPrivilegeData(tableData);
+      
+      console.log("✅ Privileges loaded successfully");
+    } catch (error) {
+      console.error("❌ Error fetching privileges:", error);
+      toast.error(error?.response?.data?.message || error.message || "Failed to load privileges");
+      
+      // ✅ Initialize with empty data on error
+      setPrivilegeData([]);
     } finally {
       setLoading(false);
     }
@@ -325,43 +299,44 @@ const Privileges = () => {
     );
   };
 
-  // Update privileges
+  // ✅ Update privileges - send boolean object format
   const updatePrivileges = async () => {
     if (!id || !privilegeData.length) {
       toast.error("No data to update");
       return;
     }
 
-    // Convert table data to backend format
-    const permissions = privilegeData
-      .map(item => {
-        const operations = [];
-        if (item.add) operations.push("add");
-        if (item.edit) operations.push("edit");
-        if (item.delete) operations.push("delete");
-        if (item.resource === "celebrity" && item.publish) operations.push("publish");
+    // ✅ Convert table data to backend format (operations as boolean objects)
+    const permissions = privilegeData.map(item => {
+      const operations = {
+        add: item.add,
+        edit: item.edit,
+        delete: item.delete,
+      };
 
-        // Only include resources that have at least one operation
-        if (operations.length > 0) {
-          return {
-            resource: item.resource,
-            operations: operations
-          };
-        }
-        return null;
-      })
-      .filter(Boolean); // Remove null values
+      // Add publish only for celebrity
+      if (item.resource === "celebrity") {
+        operations.publish = item.publish;
+      }
+
+      return {
+        resource: item.resource,
+        operations: operations
+      };
+    });
 
     const payload = { permissions };
+
+    console.log("📤 Sending payload:", JSON.stringify(payload, null, 2));
 
     setSubmitting(true);
     try {
       const response = await setPrivileges(id, payload);
-      toast.success(response.msg || "Privileges updated successfully!");
+      toast.success(response.data?.message || response.message || "Privileges updated successfully!");
       fetchPrivileges(); // Refresh data
     } catch (error) {
-      console.error("Error updating privileges:", error);
-      toast.error(error);
+      console.error("❌ Error updating privileges:", error);
+      toast.error(error?.response?.data?.message || error.message || "Failed to update privileges");
     } finally {
       setSubmitting(false);
     }
@@ -479,6 +454,8 @@ const Privileges = () => {
       <div className="page-content">
         <Container fluid>
           <Breadcrumbs title="Privileges" breadcrumbItems={breadcrumbItems} />
+          
+          
           <Card>
             <CardBody>
               {loading ? (

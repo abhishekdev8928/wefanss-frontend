@@ -1,4 +1,4 @@
-import React, { useMemo, Fragment, useState, useEffect } from "react";
+import React, { Fragment, useState, useEffect } from "react";
 import {
   Card,
   CardBody,
@@ -40,6 +40,10 @@ import {
   updateSectionTemplateStatus,
   getSectionsOptions,
 } from "../../api/SectionTemplateApi";
+import PrivilegeAccess from "../../components/protection/PrivilegeAccess";
+import { RESOURCES, OPERATIONS } from "../../constant/privilegeConstants";
+import { usePrivilegeStore } from "../../config/store/privilegeStore";
+
 function GlobalFilter({
   preGlobalFilteredRows,
   globalFilter,
@@ -140,11 +144,16 @@ const TableContainer = ({
           />
         )}
         <Col md={6}>
-          <div className="d-flex justify-content-end">
-            <Button color="primary" onClick={() => setModalOpen(true)}>
-              Add
-            </Button>
-          </div>
+          <PrivilegeAccess
+            resource={RESOURCES.SECTION_TEMPLATE}
+            action={OPERATIONS.ADD}
+          >
+            <div className="d-flex justify-content-end">
+              <Button color="primary" onClick={() => setModalOpen(true)}>
+                Add
+              </Button>
+            </div>
+          </PrivilegeAccess>
         </Col>
       </Row>
 
@@ -246,84 +255,78 @@ TableContainer.propTypes = {
 const RoleMasterList = () => {
   const [category, setcategory] = useState({
     title: "",
-     sections: [], // ✅ Prevents undefined errors
+    sections: [],
   });
 
   const [rolelist, setcategorylist] = useState([]);
-
   const [modalOpen, setModalOpen] = useState(false);
   const [modalOpen1, setModalOpen1] = useState(false);
   const [sectionsOptions, setSectionsOptions] = useState([]);
-
   const [modalOpen2, setModalOpen2] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [itemIdToDelete, setItemIdToDelete] = useState(null);
+  const [errors, setErrors] = useState({});
 
-  // 👇 Open modal and set ID
+  const { hasPermission } = usePrivilegeStore();
+
   const handleDelete = (id) => {
     setDeleteId(id);
     setModalOpen2(true);
   };
 
-  // 👇 Close modal and reset ID
   const handleClose = () => {
     setModalOpen2(false);
     setDeleteId(null);
   };
-  //for datatable
-const fetchData = async () => {
-  try {
-    const result = await fetchSectionTemplate();
-    setcategorylist(result.msg);
-  } catch (error) {
-    toast.error("Failed to load categories.");
-  }
-};
 
-const handleChange = async (currentStatus, id) => {
-  const newStatus = currentStatus == 1 ? 0 : 1;
-  try {
-    await updateSectionTemplateStatus(id, newStatus);
-    toast.success("Status updated successfully");
-    fetchData();
-  } catch (error) {
-    toast.error("Failed to update status");
-  }
-};
+  const fetchData = async () => {
+    try {
+      const result = await fetchSectionTemplate();
+      setcategorylist(result.msg);
+    } catch (error) {
+      toast.error("Failed to load categories.");
+    }
+  };
 
-  const [itemIdToDelete, setItemIdToDelete] = useState(null);
+  const handleChange = async (currentStatus, id) => {
+    const newStatus = currentStatus == 1 ? 0 : 1;
+    try {
+      await updateSectionTemplateStatus(id, newStatus);
+      toast.success("Status updated successfully");
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to update status");
+    }
+  };
 
-  //for edit
-const handleedit = async (id) => {
-  try {
-    const data = await getSectionTemplateById(id);
-    const template = data.msg[0];
+  const handleedit = async (id) => {
+    try {
+      const data = await getSectionTemplateById(id);
+      const template = data.msg[0];
 
-    setcategory({
-      title: template.title || "",
-      sections: template.sections ? template.sections.map((sec) => sec._id || sec) : [],
-    });
+      setcategory({
+        title: template.title || "",
+        sections: template.sections ? template.sections.map((sec) => sec._id || sec) : [],
+      });
 
-    setItemIdToDelete(template._id);
-    setModalOpen(true);
-  } catch (error) {
-    toast.error("Failed to load section template data");
-  }
-};
+      setItemIdToDelete(template._id);
+      setModalOpen(true);
+    } catch (error) {
+      toast.error("Failed to load section template data");
+    }
+  };
 
-
-  // 👇 Confirm delete function
- const handleyesno = async () => {
-  if (!deleteId) return toast.error("No ID to delete.");
-  try {
-    const data = await deleteSectionTemplate(deleteId);
-    toast.success("Deleted successfully");
-    setModalOpen2(false);
-    fetchData();
-  } catch (error) {
-    toast.error("Delete failed");
-  }
-};
-
+  const handleyesno = async () => {
+    if (!deleteId) return toast.error("No ID to delete.");
+    try {
+      const data = await deleteSectionTemplate(deleteId);
+      toast.success("Deleted successfully");
+      setModalOpen2(false);
+      fetchData();
+    } catch (error) {
+      toast.error("Delete failed");
+    }
+  };
 
   const handleStatusToggle = (id) => {
     setcategorylist((prevList) =>
@@ -338,47 +341,51 @@ const handleedit = async (id) => {
     );
   };
 
-  const columns = useMemo(
-    () => [
-      {
-        Header: "No.",
-        accessor: (_row, i) => i + 1,
-      },
-{ Header: "Created Date", accessor: "createdAt" },
-      { Header: "Section Title", accessor: "title" },
-    
-      {
-        Header: "Status",
-        accessor: "status",
-        Cell: ({ row }) => {
-          const isActive = row.original.status == 1;
+  const canEdit = hasPermission(RESOURCES.SECTION_TEMPLATE, OPERATIONS.EDIT);
+  const canDelete = hasPermission(RESOURCES.SECTION_TEMPLATE, OPERATIONS.DELETE);
+  const hasAnyAction = canEdit || canDelete;
 
-          return (
-            <div className="form-check form-switch">
-              <input
-                type="checkbox"
-                className="form-check-input"
-                id={`switch-${row.original._id}`}
-                checked={isActive}
-                onChange={() =>
-                  handleChange(row.original.status, row.original._id)
-                }
-              />
-              <label
-                className="form-check-label"
-                htmlFor={`switch-${row.original._id}`}
-              >
-                {isActive ? "Active" : "Inactive"}
-              </label>
-            </div>
-          );
-        },
+  const columns = [
+    { Header: "No.", accessor: (_row, i) => i + 1 },
+    { Header: "Created Date", accessor: "createdAt" },
+    { Header: "Section Title", accessor: "title" },
+    {
+      Header: "Status",
+      accessor: "status",
+      Cell: ({ row }) => {
+        const isActive = row.original.status == 1;
+        return (
+          <div className="form-check form-switch">
+            <input
+              type="checkbox"
+              className="form-check-input"
+              id={`switch-${row.original._id}`}
+              checked={isActive}
+              onChange={() =>
+                handleChange(row.original.status, row.original._id)
+              }
+            />
+            <label
+              className="form-check-label"
+              htmlFor={`switch-${row.original._id}`}
+            >
+              {isActive ? "Active" : "Inactive"}
+            </label>
+          </div>
+        );
       },
+    },
+  ];
 
-      {
-        Header: "Option",
-        Cell: ({ row }) => (
-          <div className="d-flex gap-2">
+  if (hasAnyAction) {
+    columns.push({
+      Header: "Option",
+      Cell: ({ row }) => (
+        <div className="d-flex gap-2">
+          <PrivilegeAccess
+            resource={RESOURCES.SECTION_TEMPLATE}
+            action={OPERATIONS.EDIT}
+          >
             <Button
               color="primary"
               onClick={() => handleedit(row.original._id)}
@@ -386,6 +393,12 @@ const handleedit = async (id) => {
             >
               Edit
             </Button>
+          </PrivilegeAccess>
+
+          <PrivilegeAccess
+            resource={RESOURCES.SECTION_TEMPLATE}
+            action={OPERATIONS.DELETE}
+          >
             <Button
               color="danger"
               size="sm"
@@ -393,17 +406,17 @@ const handleedit = async (id) => {
             >
               Delete
             </Button>
-          </div>
-        ),
-      },
-    ],
-    [rolelist]
-  );
+          </PrivilegeAccess>
+        </div>
+      ),
+    });
+  }
 
   const breadcrumbItems = [
     { title: "Dashboard", link: "/" },
     { title: "Section Template", link: "#" },
   ];
+
   const handleinput = (e) => {
     let name = e.target.name;
     let value = e.target.value;
@@ -412,73 +425,64 @@ const handleedit = async (id) => {
       [name]: value,
     });
   };
+
   const handleClose1 = () => {
     setModalOpen(false);
     setItemIdToDelete(null);
     setcategory({
-       title: "",
-    sections: [],
+      title: "",
+      sections: [],
     });
   };
 
-  // const [itemIdToDelete, setItemIdToDelete] = useState(null);
-  const [data, setData] = useState([]);
+  const handleaddsubmit = async (e) => {
+    e.preventDefault();
 
-  const [errors, setErrors] = useState({});
-
-const handleaddsubmit = async (e) => {
-  e.preventDefault();
-
-  // ✅ Validation
-  if (!category.title) {
-    setErrors({ title: "Title is required" });
-    return;
-  }
-  if (!category.sections || category.sections.length === 0) {
-    setErrors({ sections: "At least one section must be selected" });
-    return;
-  }
-
-  try {
-    const adminid = localStorage.getItem("adminid");
-    const payload = { ...category, createdBy: adminid };
-    let res_data;
-
-    if (itemIdToDelete) {
-      // ✅ Update existing template
-      res_data = await updateSectionTemplate(itemIdToDelete, payload);
-
-      if (res_data.success === false || res_data.error) {
-        toast.error(res_data.msg || "Update failed.");
-        return;
-      }
-
-      toast.success("Updated successfully");
-    } else {
-      // ✅ Add new template
-      res_data = await addSectionTemplate(payload);
-
-      if (res_data.success === false || res_data.error) {
-        toast.error(res_data.msg || "Add failed.");
-        return;
-      }
-
-      toast.success("Added successfully");
+    if (!category.title) {
+      setErrors({ title: "Title is required" });
+      return;
+    }
+    if (!category.sections || category.sections.length === 0) {
+      setErrors({ sections: "At least one section must be selected" });
+      return;
     }
 
-    // ✅ On success
-    handleClose1();
-    setcategory({ title: "", sections: [] });
-    setErrors({});
-    fetchData();
-  } catch (error) {
-    console.error("Add/Update Template Error:", error);
-    toast.error("Something went wrong.");
-  }
-};
+    try {
+      const adminid = localStorage.getItem("adminid");
+      const payload = { ...category, createdBy: adminid };
+      let res_data;
 
+      if (itemIdToDelete) {
+        res_data = await updateSectionTemplate(itemIdToDelete, payload);
 
-const fetchSectionsOptions = async () => {
+        if (res_data.success === false || res_data.error) {
+          toast.error(res_data.msg || "Update failed.");
+          return;
+        }
+
+        toast.success("Updated successfully");
+      } else {
+        res_data = await addSectionTemplate(payload);
+
+        if (res_data.success === false || res_data.error) {
+          toast.error(res_data.msg || "Add failed.");
+          return;
+        }
+
+        toast.success("Added successfully");
+      }
+
+      handleClose1();
+      setcategory({ title: "", sections: [] });
+      setErrors({});
+      fetchData();
+    } catch (error) {
+      console.error("Add/Update Template Error:", error);
+      toast.error("Something went wrong.");
+    }
+  };
+
+  const fetchSectionsOptions = async () => {
     try {
       const data = await getSectionsOptions();
       const options = (data.msg || []).map((item) => ({
@@ -490,6 +494,7 @@ const fetchSectionsOptions = async () => {
       console.error("Error fetching sections options:", err);
     }
   };
+
   useEffect(() => {
     fetchData();
     fetchSectionsOptions();
@@ -513,58 +518,57 @@ const fetchSectionsOptions = async () => {
           </Card>
         </Container>
 
-<Modal isOpen={modalOpen} toggle={() => setModalOpen(!modalOpen)}>
-  <ModalHeader toggle={() => setModalOpen(!modalOpen)}>
-    {!itemIdToDelete ? "Add" : "Edit"} Section Template 
-  </ModalHeader>
+        <Modal isOpen={modalOpen} toggle={() => setModalOpen(!modalOpen)}>
+          <ModalHeader toggle={() => setModalOpen(!modalOpen)}>
+            {!itemIdToDelete ? "Add" : "Edit"} Section Template
+          </ModalHeader>
 
-  <form onSubmit={handleaddsubmit}>
-    <ModalBody>
-      <Label>Title</Label>
-      <Input
-        type="text"
-        value={category.title || ""}
-        onChange={handleinput}
-        name="title"
-        placeholder="Enter title"
-        className="mb-2"
-      />
-      {errors.title && <span className="text-danger">{errors.title}</span>}
+          <form onSubmit={handleaddsubmit}>
+            <ModalBody>
+              <Label>Title</Label>
+              <Input
+                type="text"
+                value={category.title || ""}
+                onChange={handleinput}
+                name="title"
+                placeholder="Enter title"
+                className="mb-2"
+              />
+              {errors.title && <span className="text-danger">{errors.title}</span>}
 
-      <br />
+              <br />
 
-      <Label>Select Multiple Sections</Label>
-      <Select
-        isMulti
-        name="sections"
-        options={sectionsOptions}
-        value={sectionsOptions.filter((opt) =>
-          (category.sections || []).includes(opt.value)
-        )}
-        onChange={(selectedOptions) =>
-          setcategory((prev) => ({
-            ...prev,
-            sections: selectedOptions.map((opt) => opt.value),
-          }))
-        }
-        placeholder="Choose..."
-      />
-      {errors.sections && (
-        <span className="text-danger">{errors.sections}</span>
-      )}
-    </ModalBody>
+              <Label>Select Multiple Sections</Label>
+              <Select
+                isMulti
+                name="sections"
+                options={sectionsOptions}
+                value={sectionsOptions.filter((opt) =>
+                  (category.sections || []).includes(opt.value)
+                )}
+                onChange={(selectedOptions) =>
+                  setcategory((prev) => ({
+                    ...prev,
+                    sections: selectedOptions.map((opt) => opt.value),
+                  }))
+                }
+                placeholder="Choose..."
+              />
+              {errors.sections && (
+                <span className="text-danger">{errors.sections}</span>
+              )}
+            </ModalBody>
 
-    <ModalFooter>
-      <Button color="primary" type="submit">
-        {!itemIdToDelete ? "Add" : "Update"}
-      </Button>
-      <Button color="secondary" onClick={handleClose1}>
-        Cancel
-      </Button>
-    </ModalFooter>
-  </form>
-</Modal>
-
+            <ModalFooter>
+              <Button color="primary" type="submit">
+                {!itemIdToDelete ? "Add" : "Update"}
+              </Button>
+              <Button color="secondary" onClick={handleClose1}>
+                Cancel
+              </Button>
+            </ModalFooter>
+          </form>
+        </Modal>
 
         <Modal isOpen={modalOpen1} toggle={() => setModalOpen1(!modalOpen1)}>
           <ModalHeader toggle={() => setModalOpen1(!modalOpen1)}>
@@ -583,7 +587,6 @@ const fetchSectionsOptions = async () => {
           </ModalFooter>
         </Modal>
 
-        {/*  Modal for Delete Confirmation */}
         <Modal isOpen={modalOpen2} toggle={() => setModalOpen2(false)}>
           <ModalBody className="mt-3">
             <h4 className="p-3 text-center">

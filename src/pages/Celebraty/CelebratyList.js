@@ -1,4 +1,4 @@
-import React, { useMemo, Fragment, useState, useEffect } from "react";
+import React, { Fragment, useState, useEffect } from "react";
 import {
   Card,
   CardBody,
@@ -36,6 +36,9 @@ import {
   getSectionMasters,
   getCelebratySectionsByCeleb,
 } from "../../api/celebratyApi";
+import PrivilegeAccess from "../../components/protection/PrivilegeAccess";
+import { RESOURCES, OPERATIONS } from "../../constant/privilegeConstants";
+import { usePrivilegeStore } from "../../config/store/privilegeStore";
 
 function GlobalFilter({
   preGlobalFilteredRows,
@@ -137,11 +140,16 @@ const TableContainer = ({
           />
         )}
         <Col md={6}>
-          <div className="d-flex justify-content-end">
-            <Link to="/dashboard/add-celebrity" className="btn btn-primary">
-              Add
-            </Link>
-          </div>
+          <PrivilegeAccess
+            resource={RESOURCES.CELEBRITY}
+            action={OPERATIONS.ADD}
+          >
+            <div className="d-flex justify-content-end">
+              <Link to="/dashboard/add-celebrity" className="btn btn-primary">
+                Add
+              </Link>
+            </div>
+          </PrivilegeAccess>
         </Col>
       </Row>
 
@@ -242,54 +250,20 @@ TableContainer.propTypes = {
 
 const CelebratyList = () => {
   const [modalOpen2, setModalOpen2] = useState(false);
-  const [allProfessions, setAllProfessions] = useState([]); // ✅ Add this
+  const [allProfessions, setAllProfessions] = useState([]);
   const [allSectionTemplates, setAllSectionTemplates] = useState([]);
   const [allSectionMasters, setAllSectionMasters] = useState([]);
-
-  const [celebraty, setcelebraty] = useState([
-    {
-      id: 1,
-      createdDate: "2024-06-01",
-      celebratyTitle: "Design Homepage",
-      startDate: "2024-06-02",
-      endDate: "2024-06-05",
-      prostatus: "In Progress",
-      priority: "High",
-      assignedBy: "Manager A",
-      assignedTo: "Designer X",
-      status: "Active",
-    },
-    {
-      id: 2,
-      createdDate: "2024-06-03",
-      celebratyTitle: "Fix Login Bug",
-      startDate: "2024-06-04",
-      endDate: "2024-06-07",
-      prostatus: "Completed",
-      priority: "Medium",
-      assignedBy: "Manager B",
-      assignedTo: "Developer Y",
-      status: "Inactive",
-    },
-    {
-      id: 3,
-      createdDate: "2024-06-05",
-      celebratyTitle: "API Integration",
-      startDate: "2024-06-06",
-      endDate: "2024-06-10",
-      prostatus: "Pending",
-      priority: "High",
-      assignedBy: "Team Lead",
-      assignedTo: "Developer Z",
-      status: "Active",
-    },
-  ]);
-
+  const [celebraty, setcelebraty] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalOpen1, setModalOpen1] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [celebratySections, setCelebratySections] = useState([]);
+
+  const { hasPermission } = usePrivilegeStore();
+
   const fetchSectionMasters = async () => {
     try {
-      const res = await getSectionMasters(); // 👈 You should have an API function for this
+      const res = await getSectionMasters();
       if (res.msg && Array.isArray(res.msg)) {
         setAllSectionMasters(res.msg);
       } else if (res.data && Array.isArray(res.data)) {
@@ -302,6 +276,7 @@ const CelebratyList = () => {
       console.error("Error fetching section masters:", err);
     }
   };
+
   const handleStatusToggle = (id) => {
     setcelebraty((prevList) =>
       prevList.map((item) =>
@@ -318,7 +293,6 @@ const CelebratyList = () => {
   const fetchProfessions = async () => {
     try {
       const data = await getProfessions();
-      // ✅ FIX: Extract actual list
       if (data.msg && Array.isArray(data.msg)) {
         setAllProfessions(data.msg);
       } else if (Array.isArray(data)) {
@@ -332,7 +306,6 @@ const CelebratyList = () => {
     }
   };
 
-  //for datatable
   const fetchData = async () => {
     try {
       const result = await getCelebraties();
@@ -342,8 +315,6 @@ const CelebratyList = () => {
       toast.error("Failed to load celebraties.");
     }
   };
-
-  //status
 
   const handleChange = async (currentStatus, id) => {
     const newStatus = currentStatus == 1 ? 0 : 1;
@@ -364,20 +335,16 @@ const CelebratyList = () => {
     }
   };
 
-  const [deleteId, setDeleteId] = useState(null);
-
-  // 👇 Open modal and set ID
   const handleDelete = (id) => {
     setDeleteId(id);
     setModalOpen2(true);
   };
 
-  // 👇 Close modal and reset ID
   const handleClose = () => {
     setModalOpen2(false);
     setDeleteId(null);
   };
-  // 👇 Confirm delete function
+
   const handleyesno = async () => {
     if (!deleteId) {
       toast.error("No ID to delete.");
@@ -400,6 +367,7 @@ const CelebratyList = () => {
       toast.error("Something went wrong while deleting.");
     }
   };
+
   const fetchSectionTemplates = async () => {
     try {
       const res = await fetchSectionTemplate();
@@ -415,8 +383,7 @@ const CelebratyList = () => {
       console.error("Error fetching section templates:", err);
     }
   };
-  const [celebratySections, setCelebratySections] = useState([]);
-  // ✅ Once celebraty state changes, fetch its sections
+
   useEffect(() => {
     if (celebraty.length > 0) {
       const fetchSectionsForAll = async () => {
@@ -438,109 +405,114 @@ const CelebratyList = () => {
     fetchProfessions();
     fetchSectionTemplates();
     fetchSectionMasters();
-
-    console.log("All Professions:", allProfessions);
-    console.log("All Section Templates:", allSectionTemplates);
   }, []);
 
-  const columns = useMemo(
-    () => [
-      {
-        Header: "No.",
-        accessor: (_row, i) => i + 1,
-      },
-      { Header: "Created Date", accessor: "createdAt" },
-      { Header: "Celebrity Name", accessor: "name" },
+  const canEdit = hasPermission(RESOURCES.CELEBRITY, OPERATIONS.EDIT);
+  const canDelete = hasPermission(RESOURCES.CELEBRITY, OPERATIONS.DELETE);
+  const hasAnyAction = canEdit || canDelete;
 
-      {
-        Header: "Celebrity Sections",
-        Cell: ({ row }) => {
-          const celebSections = celebratySections.filter(
-            (cs) => cs.celebratyId === row.original._id
-          );
+  const columns = [
+    { Header: "No.", accessor: (_row, i) => i + 1 },
+    { Header: "Created Date", accessor: "createdAt" },
+    { Header: "Celebrity Name", accessor: "name" },
+    {
+      Header: "Celebrity Sections",
+      Cell: ({ row }) => {
+        const celebSections = celebratySections.filter(
+          (cs) => cs.celebratyId === row.original._id
+        );
 
-          if (celebSections.length === 0) return "—";
+        if (celebSections.length === 0) return "—";
 
-          // Deduplicate by sectiontemplate
-          const uniqueSections = Array.from(
-            new Map(
-              celebSections.map((cs) => [cs.sectiontemplate, cs])
-            ).values()
-          );
+        const uniqueSections = Array.from(
+          new Map(
+            celebSections.map((cs) => [cs.sectiontemplate, cs])
+          ).values()
+        );
 
-          return (
-            <div className="d-flex flex-wrap gap-2">
-              {uniqueSections.map((cs) => (
-                <Link
-                  key={cs._id}
-                  to={`/dashboard/section-template-list/${row.original._id}/${cs.sectionmaster}`}
-                  className="btn btn-outline-primary btn-sm"
-                >
-                  {cs.sectiontemplate} {/* ✅ Only unique template names */}
-                </Link>
-              ))}
-            </div>
-          );
-        },
-      },
-
-      {
-        Header: "Status",
-        accessor: "status",
-        Cell: ({ row }) => {
-          const isActive = row.original.status == 1;
-          return (
-            <div className="form-check form-switch">
-              <input
-                type="checkbox"
-                className="form-check-input"
-                id={`switch-${row.original._id}`}
-                checked={isActive}
-                onChange={() =>
-                  handleChange(row.original.status, row.original._id)
-                }
-              />
-              <label
-                className="form-check-label"
-                htmlFor={`switch-${row.original._id}`}
+        return (
+          <div className="d-flex flex-wrap gap-2">
+            {uniqueSections.map((cs) => (
+              <Link
+                key={cs._id}
+                to={`/dashboard/section-template-list/${row.original._id}/${cs.sectionmaster}`}
+                className="btn btn-outline-primary btn-sm"
               >
-                {isActive ? "Active" : "Inactive"}
-              </label>
-            </div>
-          );
-        },
+                {cs.sectiontemplate}
+              </Link>
+            ))}
+          </div>
+        );
       },
+    },
+    {
+      Header: "Status",
+      accessor: "status",
+      Cell: ({ row }) => {
+        const isActive = row.original.status == 1;
+        return (
+          <div className="form-check form-switch">
+            <input
+              type="checkbox"
+              className="form-check-input"
+              id={`switch-${row.original._id}`}
+              checked={isActive}
+              onChange={() =>
+                handleChange(row.original.status, row.original._id)
+              }
+            />
+            <label
+              className="form-check-label"
+              htmlFor={`switch-${row.original._id}`}
+            >
+              {isActive ? "Active" : "Inactive"}
+            </label>
+          </div>
+        );
+      },
+    },
+  ];
 
-      {
-        Header: "Option",
-        Cell: ({ row }) => {
-          const professionIds =
-            typeof row.original.professions === "string"
-              ? JSON.parse(row.original.professions || "[]")
-              : row.original.professions || [];
+  if (hasAnyAction) {
+    columns.push({
+      Header: "Option",
+      Cell: ({ row }) => {
+        const professionIds =
+          typeof row.original.professions === "string"
+            ? JSON.parse(row.original.professions || "[]")
+            : row.original.professions || [];
 
-          const actorProfession = allProfessions.find(
-            (prof) => prof.name.toLowerCase() === "actor"
-          );
-          const politicianProfession = allProfessions.find(
-            (prof) => prof.name.toLowerCase() === "politician"
-          );
+        const actorProfession = allProfessions.find(
+          (prof) => prof.name.toLowerCase() === "actor"
+        );
+        const politicianProfession = allProfessions.find(
+          (prof) => prof.name.toLowerCase() === "politician"
+        );
 
-          const isActor =
-            actorProfession && professionIds.includes(actorProfession._id);
-          const isPolitician =
-            politicianProfession &&
-            professionIds.includes(politicianProfession._id);
+        const isActor =
+          actorProfession && professionIds.includes(actorProfession._id);
+        const isPolitician =
+          politicianProfession &&
+          professionIds.includes(politicianProfession._id);
 
-          return (
-            <div className="d-flex gap-2 flex-wrap">
+        return (
+          <div className="d-flex gap-2 flex-wrap">
+            <PrivilegeAccess
+              resource={RESOURCES.CELEBRITY}
+              action={OPERATIONS.EDIT}
+            >
               <Link
                 to={`/dashboard/update-celebrity/${row.original._id}`}
                 className="btn btn-primary btn-sm"
               >
                 Edit
               </Link>
+            </PrivilegeAccess>
 
+            <PrivilegeAccess
+              resource={RESOURCES.CELEBRITY}
+              action={OPERATIONS.DELETE}
+            >
               <Button
                 color="danger"
                 size="sm"
@@ -548,66 +520,67 @@ const CelebratyList = () => {
               >
                 Delete
               </Button>
+            </PrivilegeAccess>
 
-              <Link
-                to={`/dashboard/timeline-list/${row.original._id}`}
-                className="btn btn-dark btn-sm"
-              >
-                Timeline Entries
-              </Link>
+            <Link
+              to={`/dashboard/timeline-list/${row.original._id}`}
+              className="btn btn-dark btn-sm"
+            >
+              Timeline Entries
+            </Link>
 
-              <Link
-                to={`/dashboard/triviaentries-list/${row.original._id}`}
-                className="btn btn-outline-dark btn-sm"
-              >
-                Trivia Entries
-              </Link>
-              <Link
-                to={`/dashboard/customoption-list/${row.original._id}`}
-                className="btn btn-dark btn-sm"
-              >
-                Custom Section
-              </Link>
-              {isActor && (
-                <>
-                  <Link
-                    to={`/dashboard/list-movie/${row.original._id}`}
-                    className="btn btn-success btn-sm"
-                  >
-                    Movie
-                  </Link>
-                  <Link
-                    to={`/dashboard/list-series/${row.original._id}`}
-                    className="btn btn-warning btn-sm"
-                  >
-                    TV/Web Series
-                  </Link>
-                </>
-              )}
+            <Link
+              to={`/dashboard/triviaentries-list/${row.original._id}`}
+              className="btn btn-outline-dark btn-sm"
+            >
+              Trivia Entries
+            </Link>
 
-              {isPolitician && (
-                <>
-                  <Link
-                    to={`/dashboard/list-election/${row.original._id}`}
-                    className="btn btn-info btn-sm"
-                  >
-                    Election
-                  </Link>
-                  <Link
-                    to={`/dashboardlist-positions/${row.original._id}`}
-                    className="btn btn-secondary btn-sm"
-                  >
-                    Positions Held
-                  </Link>
-                </>
-              )}
-            </div>
-          );
-        },
+            <Link
+              to={`/dashboard/customoption-list/${row.original._id}`}
+              className="btn btn-dark btn-sm"
+            >
+              Custom Section
+            </Link>
+
+            {isActor && (
+              <>
+                <Link
+                  to={`/dashboard/list-movie/${row.original._id}`}
+                  className="btn btn-success btn-sm"
+                >
+                  Movie
+                </Link>
+                <Link
+                  to={`/dashboard/list-series/${row.original._id}`}
+                  className="btn btn-warning btn-sm"
+                >
+                  TV/Web Series
+                </Link>
+              </>
+            )}
+
+            {isPolitician && (
+              <>
+                <Link
+                  to={`/dashboard/list-election/${row.original._id}`}
+                  className="btn btn-info btn-sm"
+                >
+                  Election
+                </Link>
+                <Link
+                  to={`/dashboardlist-positions/${row.original._id}`}
+                  className="btn btn-secondary btn-sm"
+                >
+                  Positions Held
+                </Link>
+              </>
+            )}
+          </div>
+        );
       },
-    ],
-    [celebraty, celebratySections, allProfessions, allSectionTemplates]
-  );
+    });
+  }
 
   const breadcrumbItems = [
     { title: "Dashboard", link: "/" },
@@ -631,9 +604,8 @@ const CelebratyList = () => {
             </CardBody>
           </Card>
         </Container>
-        {/*  Modal for Delete Confirmation */}
+
         <Modal isOpen={modalOpen2} toggle={() => setModalOpen1(!modalOpen2)}>
-          {/* <ModalHeader className="position-absolute right-0 top-0 w-100 z-1" toggle={() => setModalOpen2(!modalOpen2)}></ModalHeader> */}
           <ModalBody className="mt-3">
             <h4 className="p-3 text-center">
               Do you really want to <br /> delete the file?

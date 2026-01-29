@@ -36,6 +36,10 @@ import {
   getGenreMasterById,
   updateGenreMasterStatus,
 } from "../../api/GenreMasterApi";
+import PrivilegeAccess from "../../components/protection/PrivilegeAccess";
+import { RESOURCES, OPERATIONS } from "../../constant/privilegeConstants";
+import { usePrivilegeStore } from "../../config/store/privilegeStore";
+
 function GlobalFilter({
   preGlobalFilteredRows,
   globalFilter,
@@ -135,12 +139,18 @@ const TableContainer = ({
             setGlobalFilter={setGlobalFilter}
           />
         )}
+        {/* ✅ Add Button - wrapped with PrivilegeAccess */}
         <Col md={6}>
-          <div className="d-flex justify-content-end">
-            <Button color="primary" onClick={() => setModalOpen(true)}>
-              Add
-            </Button>
-          </div>
+          <PrivilegeAccess
+            resource={RESOURCES.GENRE}
+            action={OPERATIONS.ADD}
+          >
+            <div className="d-flex justify-content-end">
+              <Button color="primary" onClick={() => setModalOpen(true)}>
+                Add
+              </Button>
+            </div>
+          </PrivilegeAccess>
         </Col>
       </Row>
 
@@ -252,6 +262,9 @@ const RoleMasterList = () => {
   const [modalOpen2, setModalOpen2] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
+  // ✅ Get permission functions from store
+  const { hasPermission } = usePrivilegeStore();
+
   // 👇 Open modal and set ID
   const handleDelete = (id) => {
     setDeleteId(id);
@@ -324,8 +337,13 @@ const RoleMasterList = () => {
     );
   };
 
-  const columns = useMemo(
-    () => [
+  // ✅ Check permissions
+  const canEdit = hasPermission(RESOURCES.GENRE, OPERATIONS.EDIT);
+  const canDelete = hasPermission(RESOURCES.GENRE, OPERATIONS.DELETE);
+  const hasAnyAction = canEdit || canDelete;
+
+  const columns = useMemo(() => {
+    const baseColumns = [
       {
         Header: "No.",
         accessor: (_row, i) => i + 1,
@@ -360,31 +378,46 @@ const RoleMasterList = () => {
           );
         },
       },
+    ];
 
-      {
+    // ✅ Add Option column only if user has edit or delete permissions
+    if (hasAnyAction) {
+      baseColumns.push({
         Header: "Option",
         Cell: ({ row }) => (
           <div className="d-flex gap-2">
-            <Button
-              color="primary"
-              onClick={() => handleedit(row.original._id)}
-              size="sm"
+            <PrivilegeAccess
+              resource={RESOURCES.GENRE}
+              action={OPERATIONS.EDIT}
             >
-              Edit
-            </Button>
-            <Button
-              color="danger"
-              size="sm"
-              onClick={() => handleDelete(row.original._id)}
+              <Button
+                color="primary"
+                onClick={() => handleedit(row.original._id)}
+                size="sm"
+              >
+                Edit
+              </Button>
+            </PrivilegeAccess>
+
+            <PrivilegeAccess
+              resource={RESOURCES.GENRE}
+              action={OPERATIONS.DELETE}
             >
-              Delete
-            </Button>
+              <Button
+                color="danger"
+                size="sm"
+                onClick={() => handleDelete(row.original._id)}
+              >
+                Delete
+              </Button>
+            </PrivilegeAccess>
           </div>
         ),
-      },
-    ],
-    [rolelist]
-  );
+      });
+    }
+
+    return baseColumns;
+  }, [rolelist, hasAnyAction]);
 
   const breadcrumbItems = [
     { title: "Dashboard", link: "/" },

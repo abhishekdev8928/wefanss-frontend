@@ -1,4 +1,4 @@
-import React, { useMemo, Fragment, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardBody,
@@ -14,296 +14,139 @@ import {
   ModalFooter,
   Label,
   FormGroup,
+  Badge,
 } from "reactstrap";
-import {
-  useTable,
-  useGlobalFilter,
-  useAsyncDebounce,
-  useSortBy,
-  useFilters,
-  useExpanded,
-  usePagination,
-} from "react-table";
-import PropTypes from "prop-types";
+import { toast } from "react-toastify";
 import Breadcrumbs from "../../components/Common/Breadcrumb";
 import deleteimg from "../../assets/images/delete.png";
-import { toast } from "react-toastify";
 import {
   getAllUsers,
   updateUserStatus,
   deleteUser,
-  updateUserRole, // YE FUNCTION PROPERLY EXPORT HONA CHAHIYE
+  updateUserRole,
 } from "../../api/userManagementApi";
-
-// Debug ke liye - console me check karo ye function mil raha hai ya nahi
-console.log("updateUserRole function:", updateUserRole);
 import { register } from "../../api/authApi";
 import { getAllRoles } from "../../api/roleApi";
 
-function GlobalFilter({
-  preGlobalFilteredRows,
-  globalFilter,
-  setGlobalFilter,
-}) {
-  const count = preGlobalFilteredRows.length;
-  const [value, setValue] = useState(globalFilter);
-
-  const onChange = useAsyncDebounce((value) => {
-    setGlobalFilter(value || undefined);
-  }, 200);
-
-  return (
-    <Col md={4}>
-      <Input
-        type="text"
-        className="form-control"
-        placeholder={`Search ${count} records...`}
-        value={value || ""}
-        onChange={(e) => {
-          setValue(e.target.value);
-          onChange(e.target.value);
-        }}
-      />
-    </Col>
-  );
-}
-
-function Filter() {
-  return null;
-}
-
-const TableContainer = ({
-  columns,
-  data,
-  customPageSize,
-  className,
-  isGlobalFilter,
-  setModalOpen,
-}) => {
-  const {
-    getTableProps,
-    getTableBodyProps,
-    headerGroups,
-    page,
-    prepareRow,
-    canPreviousPage,
-    canNextPage,
-    pageOptions,
-    pageCount,
-    gotoPage,
-    nextPage,
-    previousPage,
-    setPageSize,
-    state,
-    preGlobalFilteredRows,
-    setGlobalFilter,
-  } = useTable(
-    {
-      columns,
-      data,
-      defaultColumn: { Filter },
-      initialState: {
-        pageIndex: 0,
-        pageSize: customPageSize,
-      },
-    },
-    useGlobalFilter,
-    useFilters,
-    useSortBy,
-    useExpanded,
-    usePagination
-  );
-
-  const { pageIndex, pageSize } = state;
-
-  return (
-    <Fragment>
-      <Row className="mb-2">
-        <Col md={2}>
-          <select
-            className="form-select"
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
-          >
-            {[5, 10, 20].map((size) => (
-              <option key={size} value={size}>
-                Show {size}
-              </option>
-            ))}
-          </select>
-        </Col>
-        {isGlobalFilter && (
-          <GlobalFilter
-            preGlobalFilteredRows={preGlobalFilteredRows}
-            globalFilter={state.globalFilter}
-            setGlobalFilter={setGlobalFilter}
-          />
-        )}
-        <Col md={6}>
-          <div className="d-flex justify-content-end">
-            <Button color="primary" onClick={() => setModalOpen(true)}>
-              Add New User
-            </Button>
-          </div>
-        </Col>
-      </Row>
-
-      <div className="table-responsive react-table">
-        <Table bordered hover {...getTableProps()} className={className}>
-          <thead className="table-light table-nowrap">
-            {headerGroups.map((headerGroup) => (
-              <tr {...headerGroup.getHeaderGroupProps()} key={headerGroup.id}>
-                {headerGroup.headers.map((column) => (
-                  <th key={column.id}>
-                    <div {...column.getSortByToggleProps()}>
-                      {column.render("Header")}
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody {...getTableBodyProps()}>
-            {page.map((row) => {
-              prepareRow(row);
-              return (
-                <tr {...row.getRowProps()} key={row.id}>
-                  {row.cells.map((cell) => (
-                    <td {...cell.getCellProps()} key={cell.column.id}>
-                      {cell.render("Cell")}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </Table>
-      </div>
-
-      <Row className="justify-content-md-end justify-content-center align-items-center mt-3">
-        <Col className="col-md-auto">
-          <div className="d-flex gap-1">
-            <Button
-              color="primary"
-              onClick={() => gotoPage(0)}
-              disabled={!canPreviousPage}
-            >
-              {"<<"}
-            </Button>
-            <Button
-              color="primary"
-              onClick={previousPage}
-              disabled={!canPreviousPage}
-            >
-              {"<"}
-            </Button>
-          </div>
-        </Col>
-        <Col className="col-md-auto d-none d-md-block">
-          Page{" "}
-          <strong>
-            {pageIndex + 1} of {pageOptions.length}
-          </strong>
-        </Col>
-        <Col className="col-md-auto">
-          <Input
-            type="number"
-            min={1}
-            max={pageOptions.length}
-            style={{ width: 70 }}
-            value={pageIndex + 1}
-            onChange={(e) => gotoPage(Number(e.target.value) - 1)}
-          />
-        </Col>
-        <Col className="col-md-auto">
-          <div className="d-flex gap-1">
-            <Button color="primary" onClick={nextPage} disabled={!canNextPage}>
-              {">"}
-            </Button>
-            <Button
-              color="primary"
-              onClick={() => gotoPage(pageCount - 1)}
-              disabled={!canNextPage}
-            >
-              {">>"}
-            </Button>
-          </div>
-        </Col>
-      </Row>
-    </Fragment>
-  );
-};
-
-TableContainer.propTypes = {
-  columns: PropTypes.array.isRequired,
-  data: PropTypes.array.isRequired,
-  customPageSize: PropTypes.number,
-  className: PropTypes.string,
-  isGlobalFilter: PropTypes.bool,
-  setModalOpen: PropTypes.func.isRequired,
-};
-
 const UserManagementList = () => {
-  const [userList, setUserList] = useState([]);
-  const [roleList, setRoleList] = useState([]);
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [qrCodeModal, setQrCodeModal] = useState(false);
-  const [deleteId, setDeleteId] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [editUserId, setEditUserId] = useState(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+  // State management
+  const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
+  // Modal states
+  const [addModal, setAddModal] = useState(false);
+  const [editModal, setEditModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [qrModal, setQrModal] = useState(false);
+
+  // Reset form when modals close
+  useEffect(() => {
+    if (!addModal && !editModal) {
+      resetForm();
+    }
+  }, [addModal, editModal]);
+  
+  // Form states
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     role: "",
   });
-  
   const [errors, setErrors] = useState({});
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [deletingUserId, setDeletingUserId] = useState(null);
+  const [viewingUser, setViewingUser] = useState(null);
 
-  // Fetch users data
-  const fetchData = async () => {
-    try {
-      const result = await getAllUsers();
-      setUserList(result.data.users || []);
-    } catch (error) {
-      toast.error("Failed to load users.");
-      console.error("Fetch users error:", error);
-    }
-  };
+  // Fetch users
+const fetchUsers = async () => {
+  try {
+    const response = await getAllUsers();
+    const userList = response.data.users || [];
+    
+    const transformedUsers = userList.map(user => {
+      let roleName = "N/A";
+      
+      if (user.role) {
+        if (typeof user.role === "string") {
+          roleName = user.role;
+        } else if (typeof user.role === "object" && user.role.name) {
+          roleName = user.role.name;
+        }
+      }
+      
+      return {
+        _id: user._id,
+        name: user.name || "",
+        email: user.email || "",
+        profilePic: user.profilePic || null,
+        roleName: roleName,
+        roleId: user.role?._id || null,
+        isActive: user.isActive || false,
+        isVerified: user.isVerified || false,
+        totpEnabled: user.totpEnabled || false,
+        totpQrCode: user.totpQrCode || null,
+        lastLogin: user.lastLogin || null,
+        lastLoginDevice: user.lastLoginDevice || null,
+      };
+    });
+    
+    console.log("Transformed Users:", transformedUsers); // DEBUG
+    
+    setUsers(transformedUsers);
+    setFilteredUsers(transformedUsers);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    toast.error("Failed to load users");
+  }
+};
 
-  // Fetch roles data
+  // Fetch roles
   const fetchRoles = async () => {
     try {
-      const result = await getAllRoles();
-      setRoleList(result.data || []);
+      const response = await getAllRoles();
+      setRoles(response.data || []);
     } catch (error) {
-      toast.error("Failed to load roles.");
-      console.error("Fetch roles error:", error);
+      console.error("Error fetching roles:", error);
+      toast.error("Failed to load roles");
     }
   };
 
-  // Handle input change
+  // Search functionality
+  useEffect(() => {
+    if (searchTerm === "") {
+      setFilteredUsers(users);
+    } else {
+      const filtered = users.filter(user => 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.roleName.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredUsers(filtered);
+    }
+    setCurrentPage(1);
+  }, [searchTerm, users]);
+
+  // Pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+
+  // Form handling
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-    // Clear error for this field
+    setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) {
-      setErrors({
-        ...errors,
-        [name]: "",
-      });
+      setErrors(prev => ({ ...prev, [name]: "" }));
     }
   };
 
-  // Validate form
-  const validateForm = () => {
+  const validateForm = (isEdit = false) => {
     const newErrors = {};
     
     if (!formData.name.trim()) {
@@ -313,16 +156,13 @@ const UserManagementList = () => {
     if (!formData.email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid";
+      newErrors.email = "Invalid email format";
     }
     
-    // Only validate password for new user (add modal)
-    if (!isEditMode) {
-      if (!formData.password) {
-        newErrors.password = "Password is required";
-      } else if (formData.password.length < 6) {
-        newErrors.password = "Password must be at least 6 characters";
-      }
+    if (!isEdit && !formData.password) {
+      newErrors.password = "Password is required";
+    } else if (!isEdit && formData.password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
     }
     
     if (!formData.role) {
@@ -333,685 +173,597 @@ const UserManagementList = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle ADD new user
+  // ✅ FIXED: Add user - formData.role already contains the role ID
   const handleAddUser = async () => {
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm(false)) return;
     
     try {
-      console.log("Adding new user with data:", formData);
-      await register(formData);
+      // formData.role already contains the role ID from the dropdown
+      await register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role, // ✅ ROLE ID (already stored from dropdown)
+      });
+      
       toast.success("User created successfully");
-      handleCloseAddModal();
-      fetchData();
+      setAddModal(false);
+      resetForm();
+      fetchUsers();
     } catch (error) {
-      console.error("Add user error:", error);
-      const errorMessage = error?.message || error?.error || "Failed to create user";
-      toast.error(errorMessage);
+      console.error("Error adding user:", error);
+      toast.error(error?.message || "Failed to create user");
     }
   };
 
-  // Handle UPDATE existing user
+  // ✅ FIXED: Update user - formData.role already contains the role ID
   const handleUpdateUser = async () => {
-    if (!validateForm()) {
-      return;
-    }
-    
-    if (!editUserId) {
-      toast.error("No user ID found for update");
-      return;
-    }
+    if (!validateForm(true)) return;
     
     try {
       const updateData = {
         name: formData.name,
         email: formData.email,
-        role: formData.role,
+        role: formData.role, // ✅ ROLE ID (already stored from dropdown)
       };
       
-      // Only include password if it's provided
-      if (formData.password && formData.password.trim() !== "") {
+      if (formData.password && formData.password.trim()) {
         updateData.password = formData.password;
       }
       
-      console.log("Updating user:", editUserId, "with data:", updateData);
-      await updateUserRole(editUserId, updateData);
+      await updateUserRole(editingUserId, updateData);
       toast.success("User updated successfully");
-      handleCloseEditModal();
-      fetchData();
+      setEditModal(false);
+      resetForm();
+      fetchUsers();
     } catch (error) {
-      console.error("Update user error:", error);
-      const errorMessage = error?.message || error?.error || "Failed to update user";
-      toast.error(errorMessage);
+      console.error("Error updating user:", error);
+      toast.error(error?.message || "Failed to update user");
     }
   };
 
-  // Close add modal
-  const handleCloseAddModal = () => {
-    setAddModalOpen(false);
-    setIsEditMode(false);
-    setFormData({
-      name: "",
-      email: "",
-      password: "",
-      role: "",
-    });
-    setErrors({});
-  };
-
-  // Open add modal
-  const handleOpenAddModal = () => {
-    setIsEditMode(false);
-    setEditUserId(null);
-    setFormData({
-      name: "",
-      email: "",
-      password: "",
-      role: "",
-    });
-    setErrors({});
-    setAddModalOpen(true);
-  };
-
-  // Open edit modal
-  const handleEdit = (user) => {
-    console.log("Opening edit modal for user:", user);
-    setIsEditMode(true);
-    setEditUserId(user._id);
+  // ✅ FIXED: Edit user - set roleId instead of roleName
+  const openEditModal = (user) => {
+    setEditingUserId(user._id);
     setFormData({
       name: user.name,
       email: user.email,
       password: "",
-      role: user.role,
+      role: user.roleId, // ✅ Use roleId instead of roleName
     });
-    setErrors({});
-    setEditModalOpen(true);
+    setEditModal(true);
   };
 
-  // Close edit modal
-  const handleCloseEditModal = () => {
-    setEditModalOpen(false);
-    setIsEditMode(false);
-    setEditUserId(null);
-    setFormData({
-      name: "",
-      email: "",
-      password: "",
-      role: "",
-    });
-    setErrors({});
+  // Delete user
+  const openDeleteModal = (userId) => {
+    setDeletingUserId(userId);
+    setDeleteModal(true);
   };
 
-  // Handle status toggle
-  const handleStatusChange = async (currentStatus, id) => {
-    const newStatus = !currentStatus;
+  const handleDeleteUser = async () => {
     try {
-      console.log("Updating status for user:", id, "to:", newStatus);
-      await updateUserStatus(id, { isActive: newStatus });
-      toast.success("Status updated successfully");
-      fetchData();
+      await deleteUser(deletingUserId);
+      toast.success("User deleted successfully");
+      setDeleteModal(false);
+      setDeletingUserId(null);
+      fetchUsers();
     } catch (error) {
-      console.error("Update status error:", error);
+      console.error("Error deleting user:", error);
+      toast.error("Failed to delete user");
+    }
+  };
+
+  // Toggle status
+  const handleToggleStatus = async (userId, currentStatus) => {
+    try {
+      await updateUserStatus(userId, { isActive: !currentStatus });
+      toast.success("Status updated successfully");
+      fetchUsers();
+    } catch (error) {
+      console.error("Error updating status:", error);
       toast.error("Failed to update status");
     }
   };
 
-  // Open delete modal
-  const handleDelete = (id) => {
-    console.log("Opening delete modal for user:", id);
-    setDeleteId(id);
-    setDeleteModalOpen(true);
+  // View QR
+  const openQrModal = (user) => {
+    setViewingUser(user);
+    setQrModal(true);
   };
 
-  // Close delete modal
-  const handleCloseDeleteModal = () => {
-    setDeleteModalOpen(false);
-    setDeleteId(null);
+  // Reset form
+  const resetForm = () => {
+    setFormData({ name: "", email: "", password: "", role: "" });
+    setErrors({});
+    setEditingUserId(null);
   };
 
-  // Confirm delete
-  const handleConfirmDelete = async () => {
-    if (!deleteId) {
-      toast.error("No ID to delete.");
-      return;
-    }
-    
-    try {
-      console.log("Deleting user:", deleteId);
-      await deleteUser(deleteId);
-      toast.success("User deleted successfully");
-      handleCloseDeleteModal();
-      fetchData();
-    } catch (error) {
-      console.error("Delete user error:", error);
-      toast.error("Delete failed");
-    }
-  };
-
-  // Show QR Code
-  const handleShowQR = (user) => {
-    console.log("Showing QR for user:", user);
-    setSelectedUser(user);
-    setQrCodeModal(true);
-  };
-
-  const columns = useMemo(
-    () => [
-      {
-        Header: "No.",
-        accessor: (_row, i) => i + 1,
-        Cell: ({ row }) => row.index + 1,
-      },
-      {
-        Header: "Profile",
-        accessor: "profilePic",
-        Cell: ({ row }) => (
-          <div>
-            {row.original.profilePic ? (
-              <img
-                src={row.original.profilePic}
-                alt="Profile"
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "50%",
-                  backgroundColor: "#4F46E5",
-                  color: "white",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: "600",
-                  fontSize: "14px",
-                }}
-              >
-                {row.original.name?.charAt(0).toUpperCase()}
-              </div>
-            )}
-          </div>
-        ),
-      },
-      {
-        Header: "Name",
-        accessor: "name",
-      },
-      {
-        Header: "Email",
-        accessor: "email",
-      },
-      {
-        Header: "Role",
-        accessor: "role",
-        Cell: ({ row }) => (
-          <span className="text-capitalize">{row.original.role}</span>
-        ),
-      },
-      {
-        Header: "Status",
-        accessor: "isActive",
-        Cell: ({ row }) => {
-          const isActive = row.original.isActive;
-
-          return (
-            <div className="form-check form-switch">
-              <input
-                type="checkbox"
-                className="form-check-input"
-                id={`switch-${row.original._id}`}
-                checked={isActive}
-                onChange={() =>
-                  handleStatusChange(row.original.isActive, row.original._id)
-                }
-              />
-              <label
-                className="form-check-label"
-                htmlFor={`switch-${row.original._id}`}
-              >
-                {isActive ? "Active" : "Inactive"}
-              </label>
-            </div>
-          );
-        },
-      },
-      {
-        Header: "QR Code",
-        id: "qrCode",
-        accessor: "totpQrCode",
-        Cell: ({ row }) => (
-          <div>
-            {row.original.totpQrCode ? (
-              <img
-                src={row.original.totpQrCode}
-                alt="QR Code"
-                style={{
-                  width: "60px",
-                  height: "60px",
-                  objectFit: "contain",
-                  cursor: "pointer",
-                  border: "1px solid #ddd",
-                  padding: "4px",
-                  borderRadius: "4px",
-                }}
-                onClick={() => handleShowQR(row.original)}
-                title="Click to view larger"
-              />
-            ) : (
-              <span className="text-muted">No QR Code</span>
-            )}
-          </div>
-        ),
-      },
-      {
-        Header: "Last Login",
-        accessor: "lastLogin",
-        Cell: ({ row }) => {
-          if (!row.original.lastLogin) return "Never";
-          return new Date(row.original.lastLogin).toLocaleString();
-        },
-      },
-      {
-        Header: "Actions",
-        id: "actions",
-        Cell: ({ row }) => (
-          <div className="d-flex gap-2">
-            <Button
-              color="primary"
-              size="sm"
-              onClick={() => handleEdit(row.original)}
-            >
-              <i className="mdi mdi-pencil"></i> Edit
-            </Button>
-            <Button
-              color="danger"
-              size="sm"
-              onClick={() => handleDelete(row.original._id)}
-            >
-              <i className="mdi mdi-delete"></i> Delete
-            </Button>
-          </div>
-        ),
-      },
-    ],
-    [userList]
-  );
+  // Load data on mount
+  useEffect(() => {
+    fetchUsers();
+    fetchRoles();
+  }, []);
 
   const breadcrumbItems = [
     { title: "Dashboard", link: "/" },
     { title: "User Management", link: "#" },
   ];
 
-  useEffect(() => {
-    fetchData();
-    fetchRoles();
-  }, []);
-
   return (
-    <Fragment>
-      <div className="page-content">
-        <Container fluid>
-          <Breadcrumbs
-            title="User Management"
-            breadcrumbItems={breadcrumbItems}
-          />
-          <Card>
-            <CardBody>
-              <TableContainer
-                columns={columns}
-                data={userList}
-                customPageSize={10}
-                isGlobalFilter={true}
-                setModalOpen={handleOpenAddModal}
-              />
-            </CardBody>
-          </Card>
-        </Container>
+    <div className="page-content">
+      <Container fluid>
+        <Breadcrumbs title="User Management" breadcrumbItems={breadcrumbItems} />
+        
+        <Card>
+          <CardBody>
+            {/* Controls */}
+            <Row className="mb-3">
+              <Col md={2}>
+                <select
+                  className="form-select"
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={5}>Show 5</option>
+                  <option value={10}>Show 10</option>
+                  <option value={20}>Show 20</option>
+                </select>
+              </Col>
+              
+              <Col md={4}>
+                <Input
+                  type="text"
+                  placeholder={`Search ${filteredUsers.length} records...`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </Col>
+              
+              <Col md={6} className="text-end">
+                <Button 
+                  color="primary" 
+                  onClick={() => {
+                    resetForm();
+                    setAddModal(true);
+                  }}
+                >
+                  <i className="mdi mdi-plus me-1"></i>
+                  Add New User
+                </Button>
+              </Col>
+            </Row>
 
-        {/* Add User Modal */}
-        <Modal isOpen={addModalOpen} toggle={handleCloseAddModal}>
-          <ModalHeader toggle={handleCloseAddModal}>Add New User</ModalHeader>
-          <ModalBody>
-            <FormGroup>
-              <Label for="name">Name</Label>
-              <Input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-                invalid={!!errors.name}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddUser();
-                  }
-                }}
-              />
-              {errors.name && (
-                <span className="text-danger">{errors.name}</span>
-              )}
-            </FormGroup>
-
-            <FormGroup>
-              <Label for="email">Email</Label>
-              <Input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="Enter email"
-                invalid={!!errors.email}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddUser();
-                  }
-                }}
-              />
-              {errors.email && (
-                <span className="text-danger">{errors.email}</span>
-              )}
-            </FormGroup>
-
-            <FormGroup>
-              <Label for="password">Password</Label>
-              <Input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                placeholder="Enter password"
-                invalid={!!errors.password}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddUser();
-                  }
-                }}
-              />
-              {errors.password && (
-                <span className="text-danger">{errors.password}</span>
-              )}
-            </FormGroup>
-
-            <FormGroup>
-              <Label for="role">Role</Label>
-              <Input
-                type="select"
-                id="role"
-                name="role"
-                value={formData.role}
-                onChange={handleInputChange}
-                invalid={!!errors.role}
-              >
-                <option value="">Select Role</option>
-                {roleList.map((role) => (
-                  <option key={role._id} value={role.name}>
-                    {role.name}
-                  </option>
-                ))}
-              </Input>
-              {errors.role && (
-                <span className="text-danger">{errors.role}</span>
-              )}
-            </FormGroup>
-          </ModalBody>
-          <ModalFooter>
-            <Button 
-              color="primary" 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log("ADD BUTTON CLICKED - Calling handleAddUser");
-                handleAddUser();
-              }}
-            >
-              Add User
-            </Button>
-            <Button color="secondary" onClick={handleCloseAddModal}>
-              Cancel
-            </Button>
-          </ModalFooter>
-        </Modal>
-
-        {/* Edit User Modal */}
-        <Modal isOpen={editModalOpen} toggle={handleCloseEditModal}>
-          <ModalHeader toggle={handleCloseEditModal}>Edit User</ModalHeader>
-          <ModalBody>
-            <FormGroup>
-              <Label for="edit-name">Name</Label>
-              <Input
-                type="text"
-                id="edit-name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="Enter name"
-                invalid={!!errors.name}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleUpdateUser();
-                  }
-                }}
-              />
-              {errors.name && (
-                <span className="text-danger">{errors.name}</span>
-              )}
-            </FormGroup>
-
-            <FormGroup>
-              <Label for="edit-email">Email</Label>
-              <Input
-                type="email"
-                id="edit-email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="Enter email"
-                invalid={!!errors.email}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleUpdateUser();
-                  }
-                }}
-              />
-              {errors.email && (
-                <span className="text-danger">{errors.email}</span>
-              )}
-            </FormGroup>
-
-            <FormGroup>
-              <Label for="edit-password">
-                Password <small className="text-muted">(leave blank to keep current)</small>
-              </Label>
-              <Input
-                type="password"
-                id="edit-password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                placeholder="Enter new password (optional)"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleUpdateUser();
-                  }
-                }}
-              />
-              <small className="text-muted">
-                Only fill this if you want to change the password
-              </small>
-            </FormGroup>
-
-            <FormGroup>
-              <Label for="edit-role">Role</Label>
-              <Input
-                type="select"
-                id="edit-role"
-                name="role"
-                value={formData.role}
-                onChange={handleInputChange}
-                invalid={!!errors.role}
-              >
-                <option value="">Select Role</option>
-                {roleList.map((role) => (
-                  <option key={role._id} value={role.name}>
-                    {role.name}
-                  </option>
-                ))}
-              </Input>
-              {errors.role && (
-                <span className="text-danger">{errors.role}</span>
-              )}
-            </FormGroup>
-          </ModalBody>
-          <ModalFooter>
-            <Button 
-              color="primary" 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log("UPDATE BUTTON CLICKED - Calling handleUpdateUser");
-                console.log("Edit User ID:", editUserId);
-                console.log("Is Edit Mode:", isEditMode);
-                handleUpdateUser();
-              }}
-            >
-              Update User
-            </Button>
-            <Button color="secondary" onClick={handleCloseEditModal}>
-              Cancel
-            </Button>
-          </ModalFooter>
-        </Modal>
-
-        {/* Delete Confirmation Modal */}
-        <Modal isOpen={deleteModalOpen} toggle={handleCloseDeleteModal}>
-          <ModalBody className="mt-3">
-            <h4 className="p-3 text-center">
-              Do you really want to <br /> delete this user?
-            </h4>
-            <div className="d-flex justify-content-center">
-              <img
-                src={deleteimg}
-                alt="Delete"
-                width={"70%"}
-                className="mb-3 m-auto"
-              />
+            {/* Table */}
+            <div className="table-responsive">
+              <Table bordered hover>
+                <thead className="table-light">
+                  <tr>
+                    <th>#</th>
+                    <th>Profile</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>QR Code</th>
+                    <th>Last Login</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan="9" className="text-center">
+                        No users found
+                      </td>
+                    </tr>
+                  ) : (
+                    currentUsers.map((user, index) => (
+                      <tr key={user._id}>
+                        <td>{indexOfFirstItem + index + 1}</td>
+                        <td>
+                          {user.profilePic ? (
+                            <img
+                              src={user.profilePic}
+                              alt="Profile"
+                              style={{
+                                width: "32px",
+                                height: "32px",
+                                borderRadius: "50%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: "32px",
+                                height: "32px",
+                                borderRadius: "50%",
+                                backgroundColor: "#4F46E5",
+                                color: "white",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: "600",
+                                fontSize: "14px",
+                              }}
+                            >
+                              {user.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </td>
+                        <td>{user.name}</td>
+                        <td>{user.email}</td>
+                        <td>
+                          <span className="text-capitalize">{user.roleName}</span>
+                        </td>
+                        <td>
+                          <div className="form-check form-switch">
+                            <input
+                              type="checkbox"
+                              className="form-check-input"
+                              checked={user.isActive}
+                              onChange={() => handleToggleStatus(user._id, user.isActive)}
+                            />
+                            <label className="form-check-label">
+                              {user.isActive ? "Active" : "Inactive"}
+                            </label>
+                          </div>
+                        </td>
+                        <td>
+                          {user.totpQrCode ? (
+                            <img
+                              src={user.totpQrCode}
+                              alt="QR"
+                              style={{
+                                width: "60px",
+                                height: "60px",
+                                cursor: "pointer",
+                                border: "1px solid #ddd",
+                                padding: "4px",
+                                borderRadius: "4px",
+                              }}
+                              onClick={() => openQrModal(user)}
+                            />
+                          ) : (
+                            <span className="text-muted">No QR</span>
+                          )}
+                        </td>
+                        <td>
+                          {user.lastLogin
+                            ? new Date(user.lastLogin).toLocaleString()
+                            : "Never"}
+                        </td>
+                        <td>
+                          <div className="d-flex gap-2">
+                            <Button
+                              color="primary"
+                              size="sm"
+                              onClick={() => openEditModal(user)}
+                            >
+                              <i className="mdi mdi-pencil"></i>
+                            </Button>
+                            <Button
+                              color="danger"
+                              size="sm"
+                              onClick={() => openDeleteModal(user._id)}
+                            >
+                              <i className="mdi mdi-delete"></i>
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </Table>
             </div>
-          </ModalBody>
-          <ModalFooter>
-            <Button color="danger" onClick={handleConfirmDelete}>
-              Delete
-            </Button>
-            <Button color="secondary" onClick={handleCloseDeleteModal}>
-              Cancel
-            </Button>
-          </ModalFooter>
-        </Modal>
 
-        {/* View Details Modal (QR Code) */}
-        <Modal
-          isOpen={qrCodeModal}
-          toggle={() => setQrCodeModal(false)}
-          size="lg"
-        >
-          <ModalHeader toggle={() => setQrCodeModal(false)}>
-            User Details - {selectedUser?.name}
-          </ModalHeader>
-          <ModalBody>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Row className="mt-3">
+                <Col md={6}>
+                  <p className="mb-0">
+                    Showing {indexOfFirstItem + 1} to{" "}
+                    {Math.min(indexOfLastItem, filteredUsers.length)} of{" "}
+                    {filteredUsers.length} entries
+                  </p>
+                </Col>
+                <Col md={6}>
+                  <div className="d-flex justify-content-end gap-2">
+                    <Button
+                      color="primary"
+                      size="sm"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                    >
+                      First
+                    </Button>
+                    <Button
+                      color="primary"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="align-self-center mx-2">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      color="primary"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                    </Button>
+                    <Button
+                      color="primary"
+                      size="sm"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                    >
+                      Last
+                    </Button>
+                  </div>
+                </Col>
+              </Row>
+            )}
+          </CardBody>
+        </Card>
+      </Container>
+
+      {/* Add User Modal */}
+      <Modal isOpen={addModal} toggle={() => setAddModal(false)}>
+        <ModalHeader toggle={() => setAddModal(false)}>
+          Add New User
+        </ModalHeader>
+        <ModalBody>
+          <FormGroup>
+            <Label>Name *</Label>
+            <Input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              invalid={!!errors.name}
+              autoComplete="off"
+            />
+            {errors.name && <div className="text-danger small">{errors.name}</div>}
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Email *</Label>
+            <Input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              invalid={!!errors.email}
+              autoComplete="new-email"
+            />
+            {errors.email && <div className="text-danger small">{errors.email}</div>}
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Password *</Label>
+            <Input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              invalid={!!errors.password}
+              autoComplete="new-password"
+            />
+            {errors.password && <div className="text-danger small">{errors.password}</div>}
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Role *</Label>
+            <Input
+              type="select"
+              name="role"
+              value={formData.role}
+              onChange={handleInputChange}
+              invalid={!!errors.role}
+            >
+              <option value="">Select Role</option>
+              {roles.map((role) => (
+                <option key={role._id} value={role._id}>
+                  {role.name}
+                </option>
+              ))}
+            </Input>
+            {errors.role && <div className="text-danger small">{errors.role}</div>}
+          </FormGroup>
+        </ModalBody>
+        <ModalFooter>
+          <Button color="primary" onClick={handleAddUser}>
+            Add User
+          </Button>
+          <Button color="secondary" onClick={() => setAddModal(false)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal isOpen={editModal} toggle={() => setEditModal(false)}>
+        <ModalHeader toggle={() => setEditModal(false)}>
+          Edit User
+        </ModalHeader>
+        <ModalBody>
+          <FormGroup>
+            <Label>Name *</Label>
+            <Input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              invalid={!!errors.name}
+              autoComplete="off"
+            />
+            {errors.name && <div className="text-danger small">{errors.name}</div>}
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Email *</Label>
+            <Input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              invalid={!!errors.email}
+              autoComplete="off"
+            />
+            {errors.email && <div className="text-danger small">{errors.email}</div>}
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Password (Leave blank to keep current)</Label>
+            <Input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              autoComplete="new-password"
+            />
+            <small className="text-muted">Only fill to change password</small>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Role *</Label>
+            <Input
+              type="select"
+              name="role"
+              value={formData.role}
+              onChange={handleInputChange}
+              invalid={!!errors.role}
+            >
+              <option value="">Select Role</option>
+              {roles.map((role) => (
+                <option key={role._id} value={role._id}>
+                  {role.name}
+                </option>
+              ))}
+            </Input>
+            {errors.role && <div className="text-danger small">{errors.role}</div>}
+          </FormGroup>
+        </ModalBody>
+        <ModalFooter>
+          <Button color="primary" onClick={handleUpdateUser}>
+            Update User
+          </Button>
+          <Button color="secondary" onClick={() => setEditModal(false)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Delete Modal */}
+      <Modal isOpen={deleteModal} toggle={() => setDeleteModal(false)}>
+        <ModalBody className="text-center py-4">
+          <h4 className="mb-4">
+            Do you really want to delete this user?
+          </h4>
+          <img src={deleteimg} alt="Delete" style={{ width: "200px" }} />
+        </ModalBody>
+        <ModalFooter>
+          <Button color="danger" onClick={handleDeleteUser}>
+            Delete
+          </Button>
+          <Button color="secondary" onClick={() => setDeleteModal(false)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* QR Modal */}
+      <Modal isOpen={qrModal} toggle={() => setQrModal(false)} size="lg">
+        <ModalHeader toggle={() => setQrModal(false)}>
+          User Details - {viewingUser?.name}
+        </ModalHeader>
+        <ModalBody>
+          {viewingUser && (
             <Row>
               <Col md={6}>
                 <h5>User Information</h5>
                 <div className="mb-3">
-                  <strong>Name:</strong> {selectedUser?.name}
+                  <strong>Name:</strong> {viewingUser.name}
                 </div>
                 <div className="mb-3">
-                  <strong>Email:</strong> {selectedUser?.email}
+                  <strong>Email:</strong> {viewingUser.email}
                 </div>
                 <div className="mb-3">
                   <strong>Role:</strong>{" "}
-                  <span className="text-capitalize">{selectedUser?.role}</span>
+                  <span className="text-capitalize">{viewingUser.roleName}</span>
                 </div>
                 <div className="mb-3">
                   <strong>Status:</strong>{" "}
-                  {selectedUser?.isActive ? (
-                    <span className="badge bg-success">Active</span>
+                  {viewingUser.isActive ? (
+                    <Badge color="success">Active</Badge>
                   ) : (
-                    <span className="badge bg-danger">Inactive</span>
+                    <Badge color="danger">Inactive</Badge>
                   )}
                 </div>
                 <div className="mb-3">
                   <strong>Verified:</strong>{" "}
-                  {selectedUser?.isVerified ? (
-                    <span className="badge bg-success">Yes</span>
+                  {viewingUser.isVerified ? (
+                    <Badge color="success">Yes</Badge>
                   ) : (
-                    <span className="badge bg-warning">No</span>
+                    <Badge color="warning">No</Badge>
                   )}
                 </div>
                 <div className="mb-3">
                   <strong>2FA Enabled:</strong>{" "}
-                  {selectedUser?.totpEnabled ? (
-                    <span className="badge bg-success">Yes</span>
+                  {viewingUser.totpEnabled ? (
+                    <Badge color="success">Yes</Badge>
                   ) : (
-                    <span className="badge bg-secondary">No</span>
+                    <Badge color="secondary">No</Badge>
                   )}
                 </div>
                 <div className="mb-3">
                   <strong>Last Login:</strong>{" "}
-                  {selectedUser?.lastLogin
-                    ? new Date(selectedUser.lastLogin).toLocaleString()
+                  {viewingUser.lastLogin
+                    ? new Date(viewingUser.lastLogin).toLocaleString()
                     : "Never"}
                 </div>
-                {selectedUser?.lastLoginDevice && (
+                {viewingUser.lastLoginDevice && (
                   <div className="mb-3">
-                    <strong>Last Device:</strong> {selectedUser.lastLoginDevice}
+                    <strong>Last Device:</strong> {viewingUser.lastLoginDevice}
                   </div>
                 )}
               </Col>
               <Col md={6}>
                 <h5>2FA QR Code</h5>
-                {selectedUser?.totpQrCode ? (
+                {viewingUser.totpQrCode ? (
                   <div className="text-center">
                     <img
-                      src={selectedUser.totpQrCode}
-                      alt="2FA QR Code"
-                      style={{ width: "100%", maxWidth: "300px" }}
-                      className="mb-3"
+                      src={viewingUser.totpQrCode}
+                      alt="QR Code"
+                      style={{ maxWidth: "300px", width: "100%" }}
                     />
-                    <p className="text-muted">
-                      Scan this QR code with your authenticator app
+                    <p className="text-muted mt-3">
+                      Scan with authenticator app
                     </p>
                   </div>
                 ) : (
-                  <p className="text-muted">
-                    No QR code available for this user
-                  </p>
+                  <p className="text-muted">No QR code available</p>
                 )}
               </Col>
             </Row>
-          </ModalBody>
-          <ModalFooter>
-            <Button color="secondary" onClick={() => setQrCodeModal(false)}>
-              Close
-            </Button>
-          </ModalFooter>
-        </Modal>
-      </div>
-    </Fragment>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button color="secondary" onClick={() => setQrModal(false)}>
+            Close
+          </Button>
+        </ModalFooter>
+      </Modal>
+    </div>
   );
 };
 
